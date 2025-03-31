@@ -1,5 +1,7 @@
-import upload from "../config/multer.config.js";
+// import upload from "../config/multer.config.js";
 import UserInfo from "../models/userInfo.models.js";
+import { upload } from "../config/cloudinary.config.js";
+
 import fs from 'fs';
 
 
@@ -15,6 +17,7 @@ export const userInfo = async (req, res) => {
 
         // Now you can access req.body and req.file after Multer has processed the request
         const { navText, designation, userName, shortDesc, email } = req.body;
+
         const imagePath = req.file ? req.file.path : null;
         const imageName = req.file ? req.file.filename : null;
 
@@ -139,7 +142,7 @@ export const updateUserInfo = async (req, res) => {
         } catch (error) {
             res.status(500).json({
                 success: false,
-                message:"Internal Server Error"
+                message: "Internal Server Error"
             });
         }
     });
@@ -157,7 +160,9 @@ export const deleteUserInfo = async (req, res) => {
         }
 
         const oldImagePath = user.imageName;
-        fs.unlinkSync(`./src/uploads/${oldImagePath}`);
+        if (oldImagePath && fs.existsSync(`./src/uploads/${oldImagePath}`)) {
+            fs.unlinkSync(`./src/uploads/${oldImagePath}`);
+        }
 
         res.json({
             success: true,
@@ -186,13 +191,14 @@ export const getUserInfo = async (req, res) => {
 
         const protocol = req.protocol; // 'http' or 'https'
         const host = req.get('host'); // e.g., 'localhost:5000'
-
         const imageUrl = `${protocol}://${host}/uploads/images/${users.imageName}`;
+
         // Map through each user to add the imageUrl
         const usersWithImageUrl = {
             ...users.toObject(),
-            imageUrl
+            imageUrl: users.image // Cloudinary URL instead of local path
         };
+
 
         // Return the user data if found
         res.status(200).json({
