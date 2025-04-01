@@ -1,21 +1,12 @@
 import mongoose from "mongoose";
 
-const stack = new mongoose.Schema(
+const stackSchema = new mongoose.Schema(
     {
-        stackName: {
-            type: String,
-            required: true
-        },
-        stackImage: {
-            type: String,
-        },
-        imageName:{
-            type: String,
-        }
+        stackName: { type: String, required: true },
+        stackImage: { type: String }, // Cloudinary URL
+        imageName: { type: String },  // Cloudinary public ID
     },
     { timestamps: true }
 );
 
-const Stack = mongoose.model('stacks', stack);
-
-export default Stack;
+export default mongoose.model("Stack", stackSchema);

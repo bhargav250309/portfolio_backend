@@ -1,11 +1,11 @@
-// import upload from "../config/multer.config.js";
+// import {upload} from "../config/multer.config.js";
 // import About from "../models/about.models.js";
 // import fs from 'fs';
 
 // // create AboutUser controller
 // export const createAboutUser = async (req, res) => {
 //     // Use Multer middleware to handle file upload for aboutImage
-//     upload.single('aboutImage')(req, res, async (err) => {
+//     UploadStream.single('aboutImage')(req, res, async (err) => {
 //         if (err) {
 //             return res.json({
 //                 success: false,
@@ -191,10 +191,9 @@
 
 
 
-import { cloudinary, upload } from "../config/cloudinary.config.js";
 import About from "../models/about.models.js";
+import { upload, cloudinary } from "../config/multer.config.js";
 
-// CREATE ABOUT USER
 export const createAboutUser = async (req, res) => {
     upload.single('aboutImage')(req, res, async (err) => {
         if (err) {
@@ -202,38 +201,46 @@ export const createAboutUser = async (req, res) => {
         }
 
         const { userName, description } = req.body;
-        const aboutImage = req.file ? req.file.secure_url : null;
-        const imageName = req.file ? req.file.public_id : null;
+        const file = req.file;
+
+        if (!userName || !description || !file) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields including aboutImage are required",
+            });
+        }
 
         try {
-            if (!userName || !description || !aboutImage) {
-                return res.status(400).json({ success: false, message: "All fields including aboutImage are required" });
-            }
-
-            const existingUser = await About.findOne({});
+            const existingUser = await About.findOne();
             if (existingUser) {
-                await About.deleteOne({ _id: existingUser._id });
+                return res.status(400).json({ success: false, message: "About user already exists" });
             }
 
-            const aboutUser = await About.create({
+            // Upload image to Cloudinary
+            const uploadResponse = await cloudinary.uploader.upload(file.path);
+
+            const newAboutUser = await About.create({
                 userName,
                 description,
-                aboutImage,
-                imageName
+                aboutImage: uploadResponse.secure_url,
+                imageName: uploadResponse.public_id,
             });
 
             res.status(201).json({
                 success: true,
                 message: "About user created successfully",
-                data: aboutUser
+                data: newAboutUser,
             });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            res.status(500).json({
+                success: false,
+                message: "Internal Server Error",
+            });
         }
     });
 };
 
-// UPDATE ABOUT USER
+
 export const updateAboutUser = async (req, res) => {
     const { aboutUserId } = req.params;
 
@@ -242,24 +249,27 @@ export const updateAboutUser = async (req, res) => {
             return res.status(400).json({ success: false, message: err.message });
         }
 
+        const { userName, description } = req.body;
+
         try {
             const aboutUser = await About.findById(aboutUserId);
             if (!aboutUser) {
-                return res.status(404).json({ success: false, message: "No about user found" });
+                return res.status(404).json({ success: false, message: "About user not found" });
             }
 
-            const { userName, description } = req.body;
             if (userName) aboutUser.userName = userName;
             if (description) aboutUser.description = description;
 
             if (req.file) {
-                // Delete the old image from Cloudinary
+                // Delete old image from Cloudinary
                 if (aboutUser.imageName) {
                     await cloudinary.uploader.destroy(aboutUser.imageName);
                 }
 
-                aboutUser.aboutImage = req.file.secure_url;
-                aboutUser.imageName = req.file.public_id;
+                // Upload new image
+                const uploadResponse = await cloudinary.uploader.upload(req.file.path);
+                aboutUser.aboutImage = uploadResponse.secure_url;
+                aboutUser.imageName = uploadResponse.public_id;
             }
 
             await aboutUser.save();
@@ -267,22 +277,25 @@ export const updateAboutUser = async (req, res) => {
             res.status(200).json({
                 success: true,
                 message: "About user updated successfully",
-                data: aboutUser
+                data: aboutUser,
             });
         } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+            res.status(500).json({
+                success: false,
+                message: error.message || "Internal Server Error",
+            });
         }
     });
 };
 
-// DELETE ABOUT USER
+
 export const deleteAboutUser = async (req, res) => {
     const { aboutUserId } = req.params;
 
     try {
         const aboutUser = await About.findById(aboutUserId);
         if (!aboutUser) {
-            return res.status(404).json({ success: false, message: "No about user found" });
+            return res.status(404).json({ success: false, message: "About user not found" });
         }
 
         // Delete image from Cloudinary
@@ -294,14 +307,17 @@ export const deleteAboutUser = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "About user deleted successfully"
+            message: "About user deleted successfully",
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
 };
 
-// GET ABOUT USER
+
 export const getAboutUser = async (req, res) => {
     try {
         const aboutUser = await About.findOne();
@@ -312,9 +328,12 @@ export const getAboutUser = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "About user retrieved successfully",
-            data: aboutUser
+            data: aboutUser,
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
 };

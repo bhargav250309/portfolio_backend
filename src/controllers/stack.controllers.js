@@ -255,58 +255,35 @@
 
 
 
-import { upload } from "../config/cloudinary.config.js";
+import { upload, cloudinary } from "../config/multer.config.js";
 import Stack from "../models/stack.models.js";
-import { v2 as cloudinary } from "cloudinary";
 
 // CREATE STACK
 export const createStack = async (req, res) => {
     upload.single('stackImage')(req, res, async (err) => {
-        if (err) {
-            console.error("Upload Error:", err);
-            return res.status(400).json({
-                success: false,
-                message: err.message,
-            });
-        }
+        if (err) return res.status(400).json({ success: false, message: err.message });
 
         const { stackName } = req.body;
-        const stackImageUrl = req.file ? req.file.path : null;
-        const imageName = req.file ? req.file.public_id : null;
+        const stackImage = req.file ? req.file.path : null;
+        const imageName = req.file ? req.file.public_id : null; // Correct way to get public_id
+
+        if (!stackName || !stackImage) {
+            return res.status(400).json({ success: false, message: "Stack name and image are required" });
+        }
 
         try {
-            if (!stackName || !stackImageUrl) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Stack name and image are required',
-                });
-            }
-
             const existingStack = await Stack.findOne({ stackName });
-            if (existingStack) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Stack name already exists',
-                });
-            }
+            if (existingStack) return res.status(400).json({ success: false, message: "Stack name already exists" });
 
             const newStack = await Stack.create({
                 stackName,
-                stackImage: stackImageUrl,
-                imageName: imageName,
+                stackImage,
+                imageName, // Correctly store the public_id
             });
 
-            res.status(201).json({
-                success: true,
-                message: 'Stack created successfully',
-                stack: newStack,
-            });
+            res.status(201).json({ success: true, message: "Stack created successfully", stack: newStack });
         } catch (error) {
-            console.error("Database Error:", error);
-            res.status(500).json({
-                success: false,
-                message: "Internal Server Error",
-            });
+            res.status(500).json({ success: false, message: "Internal Server Error" });
         }
     });
 };
@@ -316,62 +293,36 @@ export const updateStack = async (req, res) => {
     const { stackId } = req.params;
 
     upload.single('stackImage')(req, res, async (err) => {
-        if (err) {
-            console.error("Upload Error:", err);
-            return res.status(400).json({
-                success: false,
-                message: err.message,
-            });
-        }
+        if (err) return res.status(400).json({ success: false, message: err.message });
 
         const { stackName } = req.body;
 
         try {
             const stack = await Stack.findById(stackId);
-            if (!stack) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Stack not found',
-                });
-            }
+            if (!stack) return res.status(404).json({ success: false, message: "Stack not found" });
 
             if (stackName && stackName !== stack.stackName) {
-                const existingStack = await Stack.findOne({ stackName });
-                if (existingStack) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Stack name already exists',
-                    });
-                }
+                const duplicate = await Stack.findOne({ stackName });
+                if (duplicate) return res.status(400).json({ success: false, message: "Stack name already exists" });
                 stack.stackName = stackName;
-            }
-
+            }   
+            console.log(stack)
             if (req.file) {
-                const oldImageName = stack.imageName;
-
-                // Delete old image from Cloudinary
-                if (oldImageName) {
-                    await cloudinary.uploader.destroy(oldImageName);
+                // Delete old image from Cloudinary if it exists
+                if (stack.imageName) {
+                    await cloudinary.uploader.destroy(stack.imageName);
                 }
 
                 // Update with new image
                 stack.stackImage = req.file.path;
-                stack.imageName = req.file.public_id;
+                stack.imageName = req.file.public_id; // Correct public_id
             }
 
             await stack.save();
 
-            res.status(200).json({
-                success: true,
-                message: 'Stack updated successfully',
-                stack,
-            });
+            res.status(200).json({ success: true, message: "Stack updated successfully", stack });
         } catch (error) {
-            console.error("Database Error:", error);
-            res.status(500).json({
-                success: false,
-                message: "Internal Server Error",
-            });
+            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });
 };
@@ -382,12 +333,7 @@ export const deleteStack = async (req, res) => {
 
     try {
         const stack = await Stack.findById(stackId);
-        if (!stack) {
-            return res.status(404).json({
-                success: false,
-                message: 'Stack not found',
-            });
-        }
+        if (!stack) return res.status(404).json({ success: false, message: "Stack not found" });
 
         // Delete image from Cloudinary
         if (stack.imageName) {
@@ -396,16 +342,9 @@ export const deleteStack = async (req, res) => {
 
         await stack.deleteOne();
 
-        res.status(200).json({
-            success: true,
-            message: 'Stack deleted successfully',
-        });
+        res.status(200).json({ success: true, message: "Stack deleted successfully" });
     } catch (error) {
-        console.error("Database Error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-        });
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
 
@@ -413,24 +352,11 @@ export const deleteStack = async (req, res) => {
 export const getStacks = async (req, res) => {
     try {
         const stacks = await Stack.find();
-        if (!stacks.length) {
-            return res.status(404).json({
-                success: false,
-                message: 'No stacks found',
-            });
-        }
+        if (!stacks.length) return res.status(404).json({ success: false, message: "No stacks found" });
 
-        res.status(200).json({
-            success: true,
-            message: 'Stacks retrieved successfully',
-            data: stacks,
-        });
+        res.status(200).json({ success: true, data: stacks });
     } catch (error) {
-        console.error("Database Error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-        });
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
 
@@ -440,23 +366,10 @@ export const getStacksBYId = async (req, res) => {
 
     try {
         const stack = await Stack.findById(stackId);
-        if (!stack) {
-            return res.status(404).json({
-                success: false,
-                message: 'Stack not found',
-            });
-        }
+        if (!stack) return res.status(404).json({ success: false, message: "Stack not found" });
 
-        res.status(200).json({
-            success: true,
-            message: 'Stack retrieved successfully',
-            data: stack,
-        });
+        res.status(200).json({ success: true, data: stack });
     } catch (error) {
-        console.error("Database Error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-        });
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
