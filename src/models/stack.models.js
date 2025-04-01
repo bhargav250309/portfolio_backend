@@ -8,11 +8,9 @@ const stack = new mongoose.Schema(
         },
         stackImage: {
             type: String,
-            // required: true
         },
         imageName:{
             type: String,
-            required: true
         }
     },
     { timestamps: true }

@@ -4,7 +4,6 @@ const projectInfo = new mongoose.Schema(
     {
         projectImage:{
             type: String,
-            required: true
         },
         title: {
             type: String,
@@ -28,7 +27,6 @@ const projectInfo = new mongoose.Schema(
         },
         imageName:{
             type: String,
-            required: true
         }
 
     },

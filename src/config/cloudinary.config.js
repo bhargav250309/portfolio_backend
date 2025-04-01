@@ -12,12 +12,12 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configure Multer storage to use Cloudinary
+// Configure Multer to use Cloudinary as storage
 const storage = new CloudinaryStorage({
     cloudinary,
     params: {
         folder: "user_uploads", // Cloudinary folder name
-        format: async (req, file) => "png", // Convert to PNG (optional)
+        allowed_formats: ["jpeg", "jpg", "png", "webp", "svg"], // Allowed formats
         public_id: (req, file) => Date.now() + "-" + file.originalname,
     },
 });

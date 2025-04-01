@@ -12,11 +12,9 @@ const aboutUser = new mongoose.Schema(
         },
         aboutImage: {
             type: String,
-            required: true
         },
         imageName:{
             type: String,
-            required: true
         }
     },
     { timestamps: true }

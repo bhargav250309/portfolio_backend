@@ -24,11 +24,11 @@ const userInfo = new mongoose.Schema(
         },
         image:{
             type: String,
-            required: true
+            // required: true
         },
         imageName:{
             type: String,
-            required: true
+            // required: true
         }
     },
     { timestamps: true }
